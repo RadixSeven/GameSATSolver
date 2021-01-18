@@ -22,7 +22,7 @@ else
             echo "completing setup"
             exit 1
         fi
-        ln -s $f $target
+        ln $f $target
     done
 fi
 
