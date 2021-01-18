@@ -10,7 +10,7 @@ void parse_line_and_add_clause(SATInstance& instance, const std::string& line) {
 
     Clause clause;
     while (std::getline(line_stream, literal_str, ' ')) {
-        if (literal_str.size() == 0) {
+        if (literal_str.empty()) {
             continue;
         }
 
@@ -47,40 +47,19 @@ SATInstance sat_instance_from_file(std::istream& file) {
     while (std::getline(file, line, '\n')) {
         strip_whitespace(line);
         // Skip blank lines and comments
-        if (line.size() > 0 and line[0] != '#') {
+        if ((not line.empty()) and line[0] != '#') {
             parse_line_and_add_clause(instance, line);
         }
     }
     return instance;
 }
 
-std::string literal_to_string(const LiteralCode l,
-                              const SATInstance& instance) {
-    std::string s{l.value & 1 ? "~" : ""};
-    s += instance.variables[l.value >> 1];
-    return s;
-}
-
-std::string clause_to_string(const Clause& clause,
-                             const SATInstance& instance) {
-    std::string s;
-    auto cur = clause.begin();
-    if (cur == clause.end()) {
-        return s;
-    }
-    s += literal_to_string(*cur++, instance);
-    while (cur != clause.end()) {
-        s += " ";
-        s += literal_to_string(*cur++, instance);
-    }
-    return s;
-}
-
 std::ostream& operator<<(std::ostream& o, const SATInstance& i) {
     for (const auto& c : i.clauses) {
-        if (not(o << clause_to_string(c, i) << std::endl)) {
+        const auto& success = o << clause_to_string(c, i) << std::endl;
+        if (not success) {
             break;
-        };
+        }
     }
     return o;
 }
@@ -89,5 +68,7 @@ int main() {
     auto instance = sat_instance_from_file(std::cin);
     std::cout << "Read instance!" << std::endl;
     std::cout << instance << std::endl;
+    auto assignments = solve(instance);
+
     return 0;
 }
