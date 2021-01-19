@@ -69,11 +69,17 @@ std::ostream& operator<<(std::ostream& o, const SATInstance& i) {
 }
 
 int main() {
+    /// Accepts input in CNF with one clause per line
+    ///
+    /// For example: (A or not B) and (B or C) is represented as
+    ///
+    /// A ~B
+    /// B  C
     auto instance = sat_instance_from_file(std::cin);
-    std::cout << "Read instance!" << std::endl;
-    std::cout << instance << std::endl;
+    std::cerr << "Read instance!" << std::endl;
+    std::cerr << instance << std::endl;
     auto assignments = solve(instance);
-    std::cout << "Solutions:" << std::endl;
+    std::cerr << "Solutions:" << std::endl;
     for (const auto& assignment : assignments) {
         std::cout << assignment_to_string(assignment, instance) << std::endl;
     }
