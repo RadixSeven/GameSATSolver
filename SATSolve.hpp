@@ -6,6 +6,13 @@
 #include <string>
 #include <vector>
 
+const bool TRACE_ON = false;
+inline void trace(const std::string& msg) {
+    if (TRACE_ON) {
+        std::cerr << "TRACE: " << msg << std::endl;
+    }
+}
+
 /// Index of a variable in an instance
 struct VariableIndex {
     unsigned int value;
@@ -52,6 +59,7 @@ enum class LiteralState { normal = 0, negated = 1 };
 void add_literal_to_clause(const std::string& variable,
                            const LiteralState state, Clause& clause,
                            SATInstance& instance) {
+    trace("add_literal_to_clause");
     auto negated = static_cast<unsigned>(state);
 
     auto& literal_codes = instance.variable_table;
@@ -69,11 +77,13 @@ void add_literal_to_clause(const std::string& variable,
 }
 
 inline void add_clause_to_instance(Clause& clause, SATInstance& instance) {
+    trace("add_clause_to_instance");
     instance.clauses.push_back(clause);
 }
 
 std::string literal_to_string(const LiteralCode l,
                               const SATInstance& instance) {
+    trace("literal_to_string");
     std::string s{l.value & 1 ? "~" : ""};
     s += instance.variables[l.value >> 1];
     return s;
@@ -81,6 +91,7 @@ std::string literal_to_string(const LiteralCode l,
 
 std::string clause_to_string(const Clause& clause,
                              const SATInstance& instance) {
+    trace("clause_to_string");
     std::string s;
     auto cur = clause.begin();
     if (cur == clause.end()) {
@@ -106,14 +117,20 @@ class Assignment {
     std::vector<LiteralAssignment> literal_assignments;
 
    public:
+    Assignment(const SATInstance& i)
+        : literal_assignments(i.variables.size(),
+                              LiteralAssignment::unassigned) {}
     LiteralAssignment& operator[](VariableIndex l) {
+        trace("Assignment::operator[]");
         return literal_assignments.at(l.value);
     }
     LiteralAssignment operator[](VariableIndex l) const {
+        trace("Assignment::operator[] const");
         return literal_assignments.at(l.value);
     }
     bool empty() const { return literal_assignments.empty(); }
     bool operator<(const Assignment& rhs) const {
+        trace("Assignment::operator< const");
         return std::lexicographical_compare(
             literal_assignments.begin(), literal_assignments.end(),
             rhs.literal_assignments.begin(), rhs.literal_assignments.end());
@@ -129,10 +146,13 @@ std::ostream& operator<<(std::ostream& out, LiteralAssignment litA) {
         case LiteralAssignment::false_:
             return out << "False";
     }
+    // Unreachable code
+    return out;
 }
 
 std::string assignment_to_string(const Assignment& assignment,
                                  const SATInstance& instance) {
+    trace("assignment_to_string");
     std::ostringstream out;
     if (assignment.empty()) {
         return std::string{"{No assignments}"};
@@ -154,6 +174,7 @@ class WatchList {
    public:
     explicit WatchList(const SATInstance& instance)
         : instance{instance}, watchers{2 * instance.variables.size()} {
+        trace("WatchList()");
         for (const auto& clause : instance.clauses) {
             Watchers& clauses_watching_first_value =
                 watchers.at(clause.front().value);
@@ -161,12 +182,17 @@ class WatchList {
         }
     }
 
-    Watchers& operator[](LiteralCode l) { return watchers.at(l.value); }
+    Watchers& operator[](LiteralCode l) {
+        trace("WatchList::operator[]");
+        return watchers.at(l.value);
+    }
     const Watchers& operator[](LiteralCode l) const {
+        trace("WatchList::operator[] const");
         return watchers.at(l.value);
     }
 
     void dump(std::ostream& out) {
+        trace("WatchList::dump const");
         for (LiteralCode lit{0}; lit.value < watchers.size(); ++lit.value) {
             out << "Watching " << literal_to_string(lit, instance) << ":";
             for (const Clause& clause : instance.clauses) {
@@ -195,6 +221,7 @@ class WatchList {
     bool assignment_is_satisfiable_and_falsify_literal(
         const LiteralCode false_literal, const Assignment& assignment,
         std::ostream* debug_stream = nullptr) {
+        trace("assignment_is_satisfiable_and_falsify_literal");
         auto& watching_false_literal = operator[](false_literal);
         while (not watching_false_literal.empty()) {
             const Clause& clause = *watching_false_literal.front();
@@ -204,9 +231,9 @@ class WatchList {
                 const bool negated_alt = alternative.is_negated();
                 const auto assigned = assignment[v];
                 if (assigned == LiteralAssignment::unassigned or
-                    (assigned == LiteralAssignment::true_ and negated_alt) or
-                    (assigned == LiteralAssignment::false_ and
-                     not negated_alt)) {
+                    (assigned == LiteralAssignment::true_ and
+                     not negated_alt) or
+                    (assigned == LiteralAssignment::false_ and negated_alt)) {
                     found_alternative = true;
                     watching_false_literal.pop_front();
                     operator[](alternative).push_back(&clause);
@@ -239,7 +266,11 @@ void solve_helper(const SATInstance& instance, WatchList& watchList,
                   VariableIndex first_unassigned_variable,
                   std::set<Assignment>& satisfying_assignments,
                   std::ostream* debug_stream) {
-    if (first_unassigned_variable.value == instance.variables.size()) {
+    trace("solve_helper");
+    trace("Assignment: " + assignment_to_string(assignment, instance));
+    trace("First unassigned: " +
+          std::to_string(first_unassigned_variable.value));
+    if (first_unassigned_variable.value >= instance.variables.size()) {
         satisfying_assignments.insert(assignment);
         return;
     }
@@ -249,7 +280,7 @@ void solve_helper(const SATInstance& instance, WatchList& watchList,
             (*debug_stream)
                 << "Trying "
                 << instance.variables[first_unassigned_variable.value] << " = "
-                << a;
+                << a << std::endl;
         }
         assignment[first_unassigned_variable] = a;
         if (watchList.assignment_is_satisfiable_and_falsify_literal(
@@ -267,9 +298,10 @@ void solve_helper(const SATInstance& instance, WatchList& watchList,
 
 std::set<Assignment> solve(const SATInstance& instance,
                            std::ostream* debug_stream = nullptr) {
+    trace("solve");
     WatchList watch_list{instance};
     std::set<Assignment> satisfying_assignments;
-    Assignment workspace_assignment;
+    Assignment workspace_assignment{instance};
     solve_helper(instance, watch_list, workspace_assignment, VariableIndex{0},
                  satisfying_assignments, debug_stream);
     return satisfying_assignments;

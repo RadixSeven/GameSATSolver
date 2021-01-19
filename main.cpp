@@ -5,6 +5,7 @@
 #include "SATSolve.hpp"
 
 void parse_line_and_add_clause(SATInstance& instance, const std::string& line) {
+    trace("parse_line_and_add_clause");
     std::stringstream line_stream(line);
     std::string literal_str;
 
@@ -33,6 +34,7 @@ void parse_line_and_add_clause(SATInstance& instance, const std::string& line) {
 // Strip whitespace from both ends of line
 // Note that this can break on UTF-8 input ...
 void strip_whitespace(std::string& line) {
+    trace("strip_whitespace");
     while (not line.empty() and std::isspace(line.back())) {
         line.pop_back();
     }
@@ -42,6 +44,7 @@ void strip_whitespace(std::string& line) {
 }
 
 SATInstance sat_instance_from_file(std::istream& file) {
+    trace("sat_instance_from_file");
     SATInstance instance;
     std::string line;
     while (std::getline(file, line, '\n')) {
@@ -55,6 +58,7 @@ SATInstance sat_instance_from_file(std::istream& file) {
 }
 
 std::ostream& operator<<(std::ostream& o, const SATInstance& i) {
+    trace("operator<< SATInstance");
     for (const auto& c : i.clauses) {
         const auto& success = o << clause_to_string(c, i) << std::endl;
         if (not success) {
@@ -69,6 +73,9 @@ int main() {
     std::cout << "Read instance!" << std::endl;
     std::cout << instance << std::endl;
     auto assignments = solve(instance);
-
+    std::cout << "Solutions:" << std::endl;
+    for (const auto& assignment : assignments) {
+        std::cout << assignment_to_string(assignment, instance) << std::endl;
+    }
     return 0;
 }
